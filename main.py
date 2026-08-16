@@ -4,15 +4,34 @@ from datetime import datetime
 import pandas as pd
 import pdfplumber
 
-def clean_name(desc: str) -> str:
-    """Strip action prefixes like 'Paid to', 'Paidto', 'Received from', etc."""
-    cleaned = re.sub(
-        r"^(Paid\s*to|Received\s*from|Self\s*transfer\s*to|Transferred\s*to)\s*",
-        "",
-        desc,
+def extract_type_and_clean_name(desc: str) -> tuple[str, str]:
+    """
+    Identifies transaction Type (Credit / Debit) and cleans the recipient/sender name.
+    """
+    desc_clean = desc.strip()
+
+    # Credit patterns: 'Received from', 'Receivedfrom'
+    if re.search(r"^(Received\s*from|Receivedfrom)", desc_clean, flags=re.IGNORECASE):
+        txn_type = "Credit"
+        name = re.sub(r"^(Received\s*from|Receivedfrom)\s*", "", desc_clean, flags=re.IGNORECASE)
+    # Debit patterns: 'Paid to', 'Paidto', 'Sent to', 'Self transfer'
+    elif re.search(
+        r"^(Paid\s*to|Paidto|Sent\s*to|Sentto|Transferred\s*to|Transferredto|Self\s*transfer\s*to|Selftransferto)",
+        desc_clean,
         flags=re.IGNORECASE,
-    )
-    return cleaned.strip()
+    ):
+        txn_type = "Debit"
+        name = re.sub(
+            r"^(Paid\s*to|Paidto|Sent\s*to|Sentto|Transferred\s*to|Transferredto|Self\s*transfer\s*to|Selftransferto)\s*",
+            "",
+            desc_clean,
+            flags=re.IGNORECASE,
+        )
+    else:
+        txn_type = "Debit"
+        name = desc_clean
+
+    return name.strip(), txn_type
 
 def format_date(raw_date: str) -> str:
     """Convert raw dates like '01Jul,2026' or '01 Jul, 2026' to 'DD/MM/YYYY'."""
@@ -48,15 +67,18 @@ def parse_gpay_pdf(pdf_path: str) -> pd.DataFrame:
                     raw_desc = match.group(2).strip()
                     raw_amt = match.group(3).strip()
 
-                    records.append(
-                        {
-                            "Name": clean_name(raw_desc),
-                            "Amount": re.sub(r"[₹Rs\s,]", "", raw_amt),
-                            "Date": format_date(raw_date),
-                        }
-                    )
+                    name, txn_type = extract_type_and_clean_name(raw_desc)
+                    amt_clean = re.sub(r"[₹Rs\s,]", "", raw_amt)
+                    formatted_date = format_date(raw_date)
 
-    return pd.DataFrame(records, columns=["Name", "Amount", "Date"])
+                    records.append({
+                        "Name": name,
+                        "Amount": amt_clean,
+                        "Date": formatted_date,
+                        "Type": txn_type,
+                    })
+
+    return pd.DataFrame(records, columns=["Name", "Amount", "Date", "Type"])
 
 def main():
     if len(sys.argv) < 3:
@@ -76,6 +98,7 @@ def main():
         df.to_csv(out_file, index=False)
 
     print(f"Successfully saved {len(df)} transactions to '{out_file}'.")
+    print("\nSample Output:")
     print(df.head())
 
 if __name__ == "__main__":
