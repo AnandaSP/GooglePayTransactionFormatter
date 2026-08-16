@@ -4,16 +4,18 @@ A lightweight Python tool to parse transaction statements exported from Google P
 
 ## Output Format
 
-The output is structured with the following 3 columns:
+The output is structured with the following 4 columns:
 
-| Name | Amount | Date |
-| :--- | :--- | :--- |
-| Alice | 200 | 01/07/2026 |
-| Bob | 1200 | 01/07/2026 |
+| Name | Amount | Date | Type |
+| :--- | :--- | :--- | :--- |
+| Alice | 200 | 01/07/2026 | Debit |
+| Bob | 1200 | 01/07/2026 | Debit |
+| Chloe | 500 | 02/07/2026 | Credit |
 
-- **Name**: Recipient or sender name (strips prefixes like `Paid to`, `Received from`, `Paidto`).
-- **Amount**: Numeric transaction amount without currency signs (`₹`, `Rs.`) or commas.
-- **Date**: Formatted as `DD/MM/YYYY`.
+- **Name**: Recipient or sender name (prefixes like `Paid to`, `Received from`, `Sent to` are stripped).
+- **Amount**: Numeric transaction amount without currency symbols (`₹`, `Rs.`) or commas.
+- **Date**: Transaction date in `DD/MM/YYYY` format.
+- **Type**: `Debit` (for `Paid to`, `Sent to`, `Self transfer`) or `Credit` (for `Received from`).
 
 ---
 
